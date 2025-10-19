@@ -1,0 +1,69 @@
+{
+  "project": "AI Budget Tracker",
+  "description": "C-style high-fidelity AI-driven accounting app with local AI and gamified retention system.",
+  "version": "0.1.0",
+  "tags": ["AI", "Finance", "Productivity", "MobileApp"],
+  "modules": [
+    {
+      "name": "UI/UX",
+      "status": "in-progress",
+      "tasks": [
+        "設計 C 風格主題（黑底+霓虹藍）",
+        "主儀表板 + AI 助理區",
+        "記帳輸入介面（語音、OCR、快速模板）",
+        "留存挑戰與成就頁"
+      ]
+    },
+    {
+      "name": "Core Logic",
+      "status": "pending",
+      "tasks": [
+        "建立 SQLite 資料庫與 CRUD 模型",
+        "實作自動分類演算法（本地 ML）",
+        "整合通知監聽（即時入帳）"
+      ]
+    },
+    {
+      "name": "AI Analysis",
+      "status": "planned",
+      "tasks": [
+        "週/月消費報告",
+        "AI 預算預測模型",
+        "AI 對話助理（理財建議）"
+      ]
+    },
+    {
+      "name": "Gamification & Retention",
+      "status": "planned",
+      "tasks": [
+        "連續記帳徽章系統",
+        "每週節省挑戰",
+        "個性化推播提醒"
+      ]
+    },
+    {
+      "name": "Monetization",
+      "status": "planned",
+      "tasks": [
+        "升級流程（免費→Pro→訂閱）",
+        "Google / Apple 內購串接",
+        "試用到轉換的通知流程"
+      ]
+    },
+    {
+      "name": "Integration",
+      "status": "planned",
+      "tasks": [
+        "Firebase / Supabase 同步",
+        "PDF / Excel 匯出",
+        "API 模組封裝"
+      ]
+    }
+  ],
+  "timeline": {
+    "week1": ["UI/UX", "Core Logic"],
+    "week2": ["AI Analysis", "OCR", "Speech Input"],
+    "week3": ["Gamification & Retention"],
+    "week4": ["Monetization", "Integration", "Release"]
+  }
+}
