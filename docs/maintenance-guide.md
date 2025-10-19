@@ -1,45 +1,56 @@
-# 維護指南
+# Maintenance Guide
 
-本指南提供開發團隊在長期維護 AI Budget Tracker 專案時的建議流程，涵蓋版本管理、品質保證、依賴更新與文件維護等主題。
+保持 AI Budget Tracker (React Native Edition) 穩定運行的日常維護指南。
 
-## 1. 分支與版本管理
-- 採用 `main` 作為穩定分支，所有開發請建立 feature/bugfix 分支並透過 Pull Request 合併。
-- 重大功能或破壞性改動建議建立 Release Branch，完成測試後再合併至 `main` 並打上版本標籤（建議遵循 SemVer）。
-- 對外發布時更新 `CHANGELOG.md`（若尚未建立，建議新增），列出新增功能、修正與已知問題。
+## 1. 版本管理與分支策略
 
-## 2. 依賴與工具更新
-- 每月檢查一次 `npm outdated`，統整過期套件並規劃更新計畫。
-- 更新前先閱讀套件發佈說明，注意破壞性變更；必要時先建立測試分支驗證。
-- 套件更新後務必執行 `npm run build` 與 `npm run test`，確認建置與測試皆成功再提交。
-- 若使用 Renovate 或 Dependabot，自動 PR 需由工程師審核、測試後再合併。
+- 使用 `main` 作為穩定分支，所有開發以 `feature/*` 或 `fix/*` 分支進行。
+- 每次提交 PR 前請執行 `expo-doctor` 及 Jest 測試（若環境允許），確保原生設定與依賴沒有衝突。
+- 上線前建立 Git Tag（例如 `v1.0.0`）對應 EAS Build，以利日後回溯。
 
-## 3. 測試與品質保證
-- 維持單元測試覆蓋率：對計算、Hook、Context 等核心邏輯至少提供單元測試。
-- 針對重要使用流程（記帳 CRUD、同步、升級、挑戰）補上整合或端對端測試，可使用 Playwright 或 Cypress。
-- 建議在 CI（GitHub Actions 等）設定以下流程：
-  1. 安裝依賴與快取 `node_modules`。
-  2. 執行 `npm run lint`（可加入 ESLint）與 `npm run test`。
-  3. 執行 `npm run build` 確保可成功打包。
-- 對外部署前於 staging 環境進行手動驗證，重點覆核：同步狀態、AI 回覆、金流導向、匯出檔案。
+## 2. 依賴更新
 
-## 4. 安全性與環境變數
-- 所有金鑰、API URL、Webhook Secret 皆應存於部署平台的環境變數，不得提交至版本庫。
-- 定期（至少每 6 個月）輪替 API Key 並檢查存取權限是否符合最小權限原則。
-- 對外 API 建議加入速率限制、驗證（JWT、HMAC）與記錄追蹤，必要時實作異常告警。
+- Expo SDK：每季檢查一次，遵循官方升級指南（`npx expo upgrade`）。
+- Native 模組：確認與最新 Expo 版本相容後再更新，避免破壞 build。
+- JavaScript 套件：使用 `npm outdated` 檢視，再分批更新並跑測試。
 
-## 5. 文件與知識管理
-- 每次功能變更或設定調整需同步更新 `README.md` 與對應模組說明文件，確保新進成員能快速上手。
-- `docs/` 內的操作指南與維護指南若有新流程或依賴變化，需在合併 PR 時一併更新。
-- 建議建立內部 Wiki 或 Notion，紀錄部署、金流稽核、客服回報等資料。
+## 3. 資料庫與同步
 
-## 6. 問題回報與支援流程
-- 於 issue tracker 定義模板（Bug、Feature Request），收集必要資訊（版本、環境、操作步驟、螢幕截圖）。
-- 設立優先級與回應時限，例如 P0（立即處理）、P1（3 日內）、P2（1 週內）。
-- 每次修復需撰寫測試或手動驗證紀錄，並在 issue 中註記解決方式與版本。
+- SQLite schema 更新需寫成 migration（`ALTER TABLE` 或 `CREATE TABLE IF NOT EXISTS`）。
+- 版本升級時若新增欄位，務必同步更新 `/sync` 端點 payload。
+- 定期檢查 `dirty` 紀錄是否累積，若長期同步失敗請檢視網路設定或衝突處理。
 
-## 7. 部署後監控
-- 為同步 API、AI API 與金流入口建立監控，建議收集成功率、錯誤率、延遲與用量。
-- 若部署在 Serverless 平台，應監測冷啟動時間與計費狀況，必要時調整配置或升級方案。
-- 使用前端錯誤收集（如 Sentry）掌握使用者端錯誤，並定期檢視 log 以改善使用者體驗。
+## 4. AI 與金流
 
-依照上述維護流程，能確保專案在長期運作下維持穩定性、可維護性與使用者信任。
+- 監控 AI 端點延遲（`latencyMs`）與錯誤率，必要時啟用多個 Region 的備援。
+- 金流節點須實作 Webhook 以更新方案狀態，並驗證簽章防止偽造請求。
+- RevenueCat／App Store 內購更新時，請同步調整方案權限與限制（AI 次數、挑戰數量）。
+
+## 5. 測試與品質
+
+- 單元測試：針對聚合函式、AI 使用額度、計費 gating 撰寫 Jest 測試。
+- UI 測試：使用 React Native Testing Library 驗證主要流程（新增紀錄、升級方案、AI fallback）。
+- E2E：以 Detox 於 Android / iOS 模擬器執行，每次重大更新至少跑一次。
+
+## 6. 文件與支援
+
+- README、Network Guide、Maintenance Guide 需同步更新版本號與端點說明。
+- 建立支援通路（如 Zendesk、Intercom），將常見問題分類：同步失敗、AI 無回應、付款未更新。
+- 若客戶通報資料遺失，請依循 GDPR / 個資規範處理，並記錄在事故報告。
+
+## 7. 監控與警示
+
+- 收集核心指標：同步成功率、AI 回覆延遲、金流成功率。
+- 透過 Sentry / Bugsnag 監控原生崩潰與 JavaScript 錯誤。
+- 設定雲端端點（Sync / AI / Billing）的 uptime 檢測，超過 SLA 立即通知維運。
+
+## 8. 部署工作流
+
+1. Merge PR → GitHub Actions 觸發 lint / test / build。
+2. 建立 EAS Build (`npx eas build --platform all`) 並於 Internal Test 測試。
+3. 測試通過後 `npx eas submit` 發佈至 Play Console / App Store Connect。
+4. 完成發布公告與版本記錄，並更新維運排程。
+
+---
+
+遵循以上流程，可確保行動 App、外部端點與金流服務在快速迭代下仍維持高可用性。

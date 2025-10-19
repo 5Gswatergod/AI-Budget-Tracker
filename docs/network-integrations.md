@@ -1,108 +1,92 @@
-# 網路與外部 API 操作指南
+# Network & External API Operations
 
-本文件說明所有需要聯網或呼叫外部 API 的功能，協助開發者在本地與部署環境中正確設定、測試與排錯。
+本文件說明需要連線或呼叫外部 API 的功能，以及在 React Native / Expo 環境中如何設定、測試與排錯。
 
-## 1. 帳本遠端同步 (`VITE_SYNC_ENDPOINT`)
+## 1. 雲端同步 (`/sync`)
 
-### 功能概述
-- 目的：在多裝置間備份與同步帳本紀錄。
-- 觸發時機：
-  - App 啟動時嘗試從遠端下載最新紀錄。
-  - 使用者在新增/編輯/刪除紀錄後，會透過 `POST` 將完整紀錄集推送到遠端。
-  - AppShell 上的「重新同步」按鈕會強制觸發下載/上傳。
-
-### API 規格
-| 方法 | 路徑 | 請求內容 | 回應內容 |
-|------|------|----------|----------|
-| `GET` | `VITE_SYNC_ENDPOINT` | 無 | `{ records: LedgerRecord[] }` |
-| `POST` | `VITE_SYNC_ENDPOINT` | `{ records: LedgerRecord[] }` | `{ ok: boolean }` 或 `201` 空回應 |
-
-> `LedgerRecord` 物件格式：`{ id: string; date: string; category: string; amount: number; note?: string; createdAt: string; updatedAt: string }`
+| 條件 | 行為 |
+| ---- | ---- |
+| **環境變數** | `EXPO_PUBLIC_SYNC_ENDPOINT` |
+| **觸發時機** | 開啟 App、手動點擊「立即同步」或 Admin Console 的「強制同步」 |
+| **請求** | `GET /sync` 取得伺服器版本 → `POST /sync` 上傳 `dirty=1` 的紀錄 |
+| **備註** | 失敗時 `syncStatus` 會標記為 `error`，同步按鈕顯示錯誤提示 |
 
 ### 操作步驟
-1. 建立可接受 GET/POST 的 REST 端點（如 Cloudflare Worker、Firebase Function 或自有後端）。
-2. 確保 GET 回傳的資料依照上述格式排序，避免重覆或遺失欄位。
-3. 部署後於專案根目錄建立 `.env` 並設定 `VITE_SYNC_ENDPOINT=https://your-api/sync`。
-4. 重新啟動開發伺服器或重新部署，確認 AppShell 右上角顯示「雲端同步」狀態。
-5. 於開發者工具 Network 面板觀察成功的 GET/POST 請求，確保 HTTP 狀態碼為 2xx。
 
-### 錯誤排查
-- **401/403**：確認端點是否需要身份驗證，若有請改為在前端加入 token header 或調整 CORS。
-- **500/502**：檢查伺服器 log，確保 request body 能正確解析；必要時設定 `Content-Type: application/json`。
-- **資料不一致**：檢查後端是否覆蓋舊紀錄；建議以 `updatedAt` 決定取捨，或於 API 回應最新資料集。
+1. 將 `.env` 或 EAS Secrets 中加入 `EXPO_PUBLIC_SYNC_ENDPOINT=https://api.example.com`。
+2. 啟動開發伺服器 `npx expo start`，在模擬器或實機開啟 App。
+3. 於 App Shell 點擊「立即同步」檢查成功訊息，或在 Admin Console 使用「強制同步」。
+4. 若回傳非 200，請於 Metro logs 查看錯誤細節並確認後端 CORS / 認證設定。
 
-## 2. AI 助理與 LLM 推薦 (`VITE_AI_ENDPOINT`)
+### 疑難排解
 
-### 功能概述
-- 目的：提供升級方案使用者即時的 AI 財務建議。
-- 觸發時機：
-  - 使用者送出問題且目前方案為 Pro/Enterprise（或在本地 mock 模式啟用）。
-  - 每次送出會帶入完整帳本摘要與前端建議問題。
+- **`Sync pull failed`**：伺服器未正確回傳 `records` 陣列，或內容 JSON 格式錯誤。
+- **`Sync push failed`**：請確認 `Content-Type: application/json` 與後端接受的欄位完全一致。
+- **無法連線**：確保模擬器可存取內網服務，必要時使用 ngrok 轉址。
 
-### API 規格
-- 方法：`POST`
-- Body：`{ question: string; ledger: { records: LedgerRecord[]; totals: TotalsSummary } }`
-- 成功回應：`{ reply: string }`
-- 失敗回應：可回傳 `{ error: string }` 或 `4xx/5xx` 狀態；前端會顯示錯誤訊息並 fallback 成規則型回應。
+---
 
-`TotalsSummary` 範例：
-```json
-{
-  "monthlySpend": 15234,
-  "topCategory": "餐飲",
-  "streak": 6,
-  "average": 530
-}
-```
+## 2. AI 助理 (`/ai/query`)
+
+| 條件 | 行為 |
+| ---- | ---- |
+| **環境變數** | `EXPO_PUBLIC_AI_ENDPOINT` |
+| **觸發時機** | 助理頁面送出問題時 |
+| **請求** | `POST /ai/query` 包含最近 500 筆帳本資料及方案資訊 |
+| **備註** | 未設定端點或失敗時會顯示「使用離線分析」並扣除同等額度 |
 
 ### 操作步驟
-1. 準備代理後端，負責與 OpenAI、Azure OpenAI 或其他 LLM 提供者溝通，避免在前端暴露 API Key。
-2. 後端實作限流、錯誤重試與記錄，以防止超量使用或敏感資料外洩。
-3. 在 `.env` 加入 `VITE_AI_ENDPOINT=https://your-api/ask`，並在部署平台同步設定。
-4. 於升級方案狀態下（可在 `BillingPortal` 內升級），打開瀏覽器 Network 面板觀察 `POST /ask` 請求。
-5. 若要進行本地測試，可使用 `MSW` 或自製 mock server 回傳固定 JSON。
 
-### 錯誤排查
-- **429 Too Many Requests**：在後端加入排程重試或自動提示使用者稍後再試；前端會顯示錯誤訊息。
-- **CORS 錯誤**：於後端允許對應網域或在開發時開啟 `Access-Control-Allow-Origin: *`。
-- **模型回傳格式錯誤**：確保 `reply` 欄位存在，否則前端會回退為本地回應。
+1. 設定 `EXPO_PUBLIC_AI_ENDPOINT=https://ai.example.com`。
+2. 於助理分頁輸入問題，確認後端回傳 `reply` 字串。
+3. 檢視 `latencyMs` 以了解端點效能；若需節流可於後端實作用量計費。
 
-## 3. 金流與客戶入口 (`VITE_BILLING_PORTAL_ENDPOINT`)
+### 疑難排解
 
-### 功能概述
-- 目的：提供使用者升級方案、取消訂閱或進入既有的客戶管理入口（如 Stripe Customer Portal）。
-- 觸發時機：
-  - `BillingPortal` 中點擊「立即升級」或「客戶入口」按鈕。
-  - `BillingProvider` 在啟動時檢查目前方案，必要時可透過此端點同步實際方案狀態。
+- **`AI request failed`**：HTTP 狀態非 200。請檢查 API 金鑰、授權或 SSL 憑證。
+- **頻繁 fallback**：確認後端對相同問題是否有快取，或是否被防火牆阻擋。
+- **429 / RATE_LIMIT**：前端會顯示限制提示，可於後端回傳 `resetAt` 給使用者明確時間。
 
-### API 規格
-| 操作 | 方法 | Body | 成功回應 |
-|------|------|------|----------|
-| 建立結帳頁 | `POST` | `{ plan: 'pro' | 'enterprise', billingCadence: 'monthly' | 'yearly' }` | `{ redirectUrl: string }` |
-| 取得客戶入口 | `GET` | 無 | `{ portalUrl: string }` |
+---
+
+## 3. 金流節點 (`/billing`)
+
+| 條件 | 行為 |
+| ---- | ---- |
+| **環境變數** | `EXPO_PUBLIC_BILLING_ENDPOINT` |
+| **觸發時機** | 升級方案按鈕、客戶入口按鈕 |
+| **請求** | `POST /billing/checkout` 建立結帳、`GET /billing/portal` 取得入口 URL |
+| **備註** | 未設定端點時按鈕會顯示「待設定金流」，防止前端直接改變方案 |
 
 ### 操作步驟
-1. 在金流服務（如 Stripe）建立 Checkout Session 與 Customer Portal，並實作對應的後端 webhook。
-2. 後端端點在收到 `POST` 時建立結帳連結，回傳 `redirectUrl`；前端會自動 `window.open` 該網址。
-3. 於 `.env` 設定 `VITE_BILLING_PORTAL_ENDPOINT=https://your-api/billing`。
-4. 測試升級流程：
-   - 在 `BillingPortal` 選擇方案並提交，確認瀏覽器新分頁導向金流頁面。
-   - 完成結帳後，確保 webhook 更新資料庫；可新增額外 API 讓前端確認目前方案。
-5. 測試客戶入口：點擊「管理訂閱」按鈕，確認回傳的 `portalUrl` 正確開啟。
 
-> **注意**：若未設定 `VITE_BILLING_PORTAL_ENDPOINT`，前台的「選擇方案」按鈕會被停用並顯示提醒，確保所有升級流程都透過實際金流節點。
+1. 在 `.env` 填入金流服務位址，例如 `https://billing.example.com`。
+2. 於 Upgrade 分頁點選 Pro / Enterprise → 系統呼叫 `/billing/checkout`，自動開啟瀏覽器結帳。
+3. 完成付款後，後端需透過 Webhook 或同步 API 更新方案狀態。
+4. 使用「開啟客戶入口」按鈕測試 `/billing/portal` 是否回傳可用連結。
 
-> **後台管理**：僅在設定 `VITE_ENABLE_ADMIN_CONSOLE=true` 時才會註冊 `/admin` 路由，此頁面供內部開發或營運人員使用，不會對終端客戶曝光。
+### 疑難排解
 
-### 錯誤排查
-- **無法開啟新頁面**：瀏覽器可能阻擋彈出視窗；前端已使用使用者操作事件觸發，可提示使用者允許彈出視窗。
-- **回傳結構錯誤**：確保 JSON 欄位名稱正確，並使用 `application/json` Content-Type。
-- **訂閱狀態不一致**：實作 webhook 或額外的 `/billing/status` 端點，由前端定期查詢。
+- **`Billing endpoint not configured`**：環境變數缺失或為空字串。
+- **`Checkout failed`**：檢查後端是否允許跨網域請求，並記錄詳細錯誤訊息。
+- **手機無法開啟連結**：請確認 `redirectUrl` 使用 `https` 且行動裝置可連線。
 
-## 4. 通用建議
-- 使用 `.env.local` 管理本地環境變數，避免將私密資訊提交至版本控制。
-- 若需在 CI/CD 中使用上述端點，建議於 pipeline 中設定對應變數並執行 `npm run build` 與 `npm run test` 進行驗證。
-- 建立 staging 與 production 兩套端點，並在部署平台（如 Vercel、Netlify）分別設定環境變數，以避免測試資料污染正式資料。
-- 為所有外部請求實作重試與 timeout，並在後端加入觀測（logs/metrics）追蹤使用狀況。
+---
 
-依照本指南完成設定後，所有需要聯網的功能即可在本地與雲端環境中穩定運作。
+## 4. 開發者後台 (Admin Console)
+
+Admin Console 透過 `EXPO_PUBLIC_ENABLE_ADMIN_CONSOLE=true` 顯示，僅供開發／測試使用。常見操作：
+
+1. **強制同步**：會先上傳 `dirty` 紀錄，再呼叫 store 既有 `sync()` 流程。
+2. **清空本地資料**：呼叫 SQLite `DELETE`，請在測試前備份重要資料。
+3. **端點健檢**：顯示目前載入的環境變數，協助確認部署設定。
+
+> 上線環境請勿打開此旗標，以避免客戶端看到開發者工具。
+
+---
+
+## 5. 測試建議
+
+- **整合測試**：可使用 Jest + React Native Testing Library 模擬 `fetch`，驗證成功與失敗時的提示字樣。
+- **E2E 測試**：透過 Detox 撰寫場景，例如「升級方案 → 完成 checkout 回傳 302」。
+- **監控**：於後端建立日誌，記錄 `userId`、`plan`、`latencyMs` 等欄位，便於追蹤異常。
