@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Layers, LayoutDashboard, Medal, Sparkles, Wallet2 } from 'lucide-react';
+import { Layers, LayoutDashboard, Medal, Settings2, Sparkles, Wallet2 } from 'lucide-react';
 import { useLedger, type SyncStatus } from '@/modules/ledger/ledgerContext';
 import { useBilling } from '@/modules/billing/billingContext';
 
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/analytics', label: '數據分析', icon: LayoutDashboard },
   { to: '/challenges', label: '挑戰任務', icon: Medal },
   { to: '/billing', label: '升級方案', icon: Layers },
+  { to: '/admin', label: '後台管理', icon: Settings2 },
 ];
 
 function SyncIndicator() {

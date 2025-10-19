@@ -34,6 +34,12 @@
 - 升級／取消／開啟客戶入口等操作具備錯誤提示與 loading 狀態。
 - AI 助理會依方案自動調整提問限制與提示文案。
 
+### 後台管理中心
+- 新增 `/admin` 控制台，集中顯示帳本筆數、累計支出、本月消費與分類覆蓋率等營運指標。
+- 一鍵匯出 CSV、觸發遠端同步或清除本地資料，並提供狀態訊息協助排錯。
+- 內建方案治理區塊，可直接切換 Free / Pro / Enterprise、取消訂閱或開啟客戶入口。
+- 具備端點設定檢查與同步錯誤提示，方便掌握整體系統健康度。
+
 ### 測試與開發體驗
 - 已安裝 Vitest 與 Testing Library（`npm run test`）用於單元測試；範例測試覆蓋金額格式、統計函式與 CSV 匯出。
 - Tailwind 配色與 UI 元件（Card、AppShell）提供一致的霓虹風格主題。
@@ -63,6 +69,7 @@
 - `src/modules/ai` – AI 助理元件，串接計費與同步資訊。
 - `src/modules/challenge` – 挑戰中心與自訂節流邏輯。
 - `src/modules/billing` – 方案 Context 與升級頁面。
+- `src/modules/admin` – 後台管理介面與營運工具。
 - `src/components/layout` – AppShell 導覽與同步顯示。
 
 ## 🚀 部署提示

@@ -7,6 +7,7 @@ import BillingPortal from './modules/billing/BillingPortal';
 import AiAssistant from './modules/ai/AiAssistant';
 import { LedgerProvider } from './modules/ledger/ledgerContext';
 import { BillingProvider } from './modules/billing/billingContext';
+import AdminPanel from './modules/admin/AdminPanel';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/analytics" element={<Dashboard />} />
             <Route path="/challenges" element={<ChallengeCenter />} />
             <Route path="/billing" element={<BillingPortal />} />
+            <Route path="/admin" element={<AdminPanel />} />
           </Route>
         </Routes>
         <AiAssistant />
