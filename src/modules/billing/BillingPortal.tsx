@@ -57,7 +57,7 @@ export default function BillingPortal() {
 
   const handleSelect = async (selectedPlan: BillingPlan) => {
     if (selectedPlan === plan) return;
-    await upgradePlan(selectedPlan);
+    await upgradePlan({ plan: selectedPlan, billingCycle });
   };
 
   return (
@@ -103,8 +103,8 @@ export default function BillingPortal() {
           </div>
           <div className="text-xs text-gray-500">
             {isBillingPortalConfigured
-              ? '已串接線上金流，升級後可直接跳轉結帳頁面。'
-              : '尚未設定金流端點，升級將直接更新本地方案。'}
+              ? '已串接線上金流，升級後會建立結帳流程並開啟金流頁面。'
+              : '尚未設定金流端點，因此無法從前台選擇方案。'}
           </div>
         </section>
 
@@ -148,15 +148,17 @@ export default function BillingPortal() {
                   </ul>
                   <button
                     type="button"
-                    disabled={isProcessing || isCurrent}
+                    disabled={isProcessing || isCurrent || !isBillingPortalConfigured}
                     onClick={() => handleSelect(planId)}
                     className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition ${
                       isCurrent
                         ? 'cursor-default border border-primary/30 bg-primary/20 text-primary'
-                        : 'bg-primary text-black hover:bg-primary/80'
+                        : isBillingPortalConfigured
+                          ? 'bg-primary text-black hover:bg-primary/80'
+                          : 'border border-white/10 bg-gray-800 text-gray-500'
                     } ${isProcessing ? 'opacity-70' : ''}`}
                   >
-                    {isCurrent ? '目前方案' : '選擇方案'}
+                    {isCurrent ? '目前方案' : isBillingPortalConfigured ? '選擇方案' : '尚未串接金流'}
                   </button>
                 </CardContent>
               </Card>

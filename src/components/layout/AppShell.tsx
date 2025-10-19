@@ -3,14 +3,6 @@ import { Layers, LayoutDashboard, Medal, Settings2, Sparkles, Wallet2 } from 'lu
 import { useLedger, type SyncStatus } from '@/modules/ledger/ledgerContext';
 import { useBilling } from '@/modules/billing/billingContext';
 
-const navItems = [
-  { to: '/ledger', label: '我的記帳', icon: Wallet2 },
-  { to: '/analytics', label: '數據分析', icon: LayoutDashboard },
-  { to: '/challenges', label: '挑戰任務', icon: Medal },
-  { to: '/billing', label: '升級方案', icon: Layers },
-  { to: '/admin', label: '後台管理', icon: Settings2 },
-];
-
 function SyncIndicator() {
   const { syncStatus, lastSyncedAt, syncError, syncNow, isSyncConfigured } = useLedger();
 
@@ -56,6 +48,19 @@ function PlanBadge() {
 }
 
 export default function AppShell() {
+  const isAdminEnabled = import.meta.env.VITE_ENABLE_ADMIN_CONSOLE === 'true';
+  const navItems = [
+    { to: '/ledger', label: '我的記帳', icon: Wallet2 },
+    { to: '/analytics', label: '數據分析', icon: LayoutDashboard },
+    { to: '/challenges', label: '挑戰任務', icon: Medal },
+    { to: '/billing', label: '升級方案', icon: Layers },
+  ];
+
+  if (isAdminEnabled) {
+    const adminItem = { to: '/admin', label: '後台管理', icon: Settings2 } as const;
+    navItems.push(adminItem);
+  }
+
   return (
     <div className="min-h-screen bg-bgdark text-white">
       <header className="border-b border-white/5 bg-gray-950/70 backdrop-blur">

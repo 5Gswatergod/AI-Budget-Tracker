@@ -30,12 +30,12 @@
 
 ### 方案與付費體驗
 - `BillingPortal` 介面列出 Free / Pro / Enterprise 方案，支援月繳/年繳切換。
-- `BillingProvider` 維護方案狀態與 14 天試用邏輯，可選擇串接金流端點 (`VITE_BILLING_PORTAL_ENDPOINT`) 建立結帳或客戶入口。
+- `BillingProvider` 維護方案狀態與 14 天試用邏輯，並會在升級時強制呼叫金流端點 (`VITE_BILLING_PORTAL_ENDPOINT`) 建立結帳流程；若未設定端點，前台將無法選擇方案。
 - 升級／取消／開啟客戶入口等操作具備錯誤提示與 loading 狀態。
 - AI 助理會依方案自動調整提問限制與提示文案。
 
 ### 後台管理中心
-- 新增 `/admin` 控制台，集中顯示帳本筆數、累計支出、本月消費與分類覆蓋率等營運指標。
+- 開發者可在啟用 `VITE_ENABLE_ADMIN_CONSOLE` 後進入 `/admin` 控制台，集中顯示帳本筆數、累計支出、本月消費與分類覆蓋率等營運指標（預設在正式環境關閉）。
 - 一鍵匯出 CSV、觸發遠端同步或清除本地資料，並提供狀態訊息協助排錯。
 - 內建方案治理區塊，可直接切換 Free / Pro / Enterprise、取消訂閱或開啟客戶入口。
 - 具備端點設定檢查與同步錯誤提示，方便掌握整體系統健康度。
@@ -53,6 +53,7 @@
 | `VITE_SYNC_ENDPOINT` | 遠端同步 API。`GET` 需回傳 `{ records: LedgerRecord[] }`；`POST` 接收 `{ records }` 更新資料。 |
 | `VITE_AI_ENDPOINT` | 進階 AI 推薦服務。會以 `POST` 傳入 `{ question, ledger }`，期待回傳 `{ reply: string }`。 |
 | `VITE_BILLING_PORTAL_ENDPOINT` | 金流／客戶入口端點。`POST` 期望回傳 `{ redirectUrl }`，`GET` 回傳 `{ portalUrl }`。 |
+| `VITE_ENABLE_ADMIN_CONSOLE` | 設為 `true` 以在開發或內部測試時顯示後台管理介面。 |
 
 若未設定上述端點，系統將自動退化為離線模式（本地儲存與規則型 AI 回應）。
 
@@ -82,6 +83,6 @@
 ## 🚧 仍待補齊的能力
 - **帳號與雲端同步後端**：目前所有資料與方案狀態僅儲存在瀏覽器 `localStorage`，只有設定 `VITE_SYNC_ENDPOINT` 時才會呼叫遠端 API，而且缺乏使用者帳號或權限控管；需要另外建置登入、身份驗證與多裝置同步服務，才能確保資料安全與一致。
 - **真正的 AI/LLM 串接**：AI 助理預設透過前端規則產生回覆。若要提供高品質建議，需準備具備限流、錯誤處理與多輪對話記錄的後端 API，並實作金鑰管理或用量計費策略。
-- **實際金流與方案管理**：升級與取消方案目前僅更新本地狀態，雖然可透過 `VITE_BILLING_PORTAL_ENDPOINT` 導向自訂入口，但仍需要整合 Stripe 或其他金流供應商、驗證 webhook、同步權限，才能避免訂閱狀態不一致。
+- **實際金流與方案管理**：前台升級流程現已強制呼叫 `VITE_BILLING_PORTAL_ENDPOINT` 建立結帳，但仍需要整合 Stripe 或其他金流供應商、驗證 webhook、同步權限，才能確保訂閱狀態與後端資料一致。
 - **更全面的測試與 CI/CD**：現階段僅針對帳本工具函式提供 Vitest 範例測試。建議補齊 UI 行為、同步流程、挑戰與計費邏輯的測試，並設定 CI/CD 管線（如 GitHub Actions）確保每次部署前都會執行建置與測試。
 - **擴充分析與報表**：儀表板主要針對即時紀錄做聚合。若要進一步支援月報、年度報表、PDF/CSV 匯出、提醒通知等功能，需要額外的資料模型與產出流程設計。

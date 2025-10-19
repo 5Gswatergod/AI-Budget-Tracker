@@ -15,6 +15,14 @@ type BillingState = {
   trialEndsAt: string | null;
 };
 
+type BillingCycle = 'monthly' | 'yearly';
+
+type UpgradeOptions = {
+  plan: BillingPlan;
+  billingCycle?: BillingCycle;
+  bypassCheckout?: boolean;
+};
+
 type BillingContextValue = {
   plan: BillingPlan;
   trialEndsAt: string | null;
@@ -22,7 +30,7 @@ type BillingContextValue = {
   isProcessing: boolean;
   billingError: string | null;
   isBillingPortalConfigured: boolean;
-  upgradePlan: (plan: BillingPlan) => Promise<void>;
+  upgradePlan: (options: UpgradeOptions) => Promise<void>;
   cancelSubscription: () => void;
   manageSubscription: () => Promise<void>;
 };
@@ -55,6 +63,19 @@ function computeTrialing(trialEndsAt: string | null) {
   return new Date(trialEndsAt).getTime() > Date.now();
 }
 
+function isBillingPlan(value: unknown): value is BillingPlan {
+  return value === 'free' || value === 'pro' || value === 'enterprise';
+}
+
+function computeTrialEnd(current: BillingPlan, next: BillingPlan) {
+  if (current === 'free' && next !== 'free') {
+    const date = new Date();
+    date.setDate(date.getDate() + 14);
+    return date.toISOString();
+  }
+  return null;
+}
+
 export function BillingProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<BillingState>(() => getInitialState());
   const [billingError, setBillingError] = useState<string | null>(null);
@@ -67,39 +88,65 @@ export function BillingProvider({ children }: PropsWithChildren) {
   }, [state]);
 
   const upgradePlan = useCallback(
-    async (plan: BillingPlan) => {
-      if (plan === state.plan) {
+    async ({ plan, billingCycle = 'monthly', bypassCheckout = false }: UpgradeOptions) => {
+      if (plan === state.plan && !bypassCheckout) {
         setBillingError(null);
         return;
       }
+
+      if (!bypassCheckout && !isBillingPortalConfigured) {
+        setBillingError('尚未設定金流端點，請先設定 `VITE_BILLING_PORTAL_ENDPOINT`。');
+        return;
+      }
+
       setProcessing(true);
       setBillingError(null);
       try {
-        if (isBillingPortalConfigured && typeof window !== 'undefined') {
+        let resolvedPlan: BillingPlan = plan;
+        let resolvedTrialEndsAt: string | null = computeTrialEnd(state.plan, plan);
+
+        if (!bypassCheckout && typeof window !== 'undefined') {
           const response = await fetch(BILLING_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ plan }),
+            body: JSON.stringify({ plan, billingCadence: billingCycle }),
           });
+
           if (!response.ok) {
             throw new Error(`無法建立結帳流程 (${response.status})`);
           }
-          const payload = await response.json().catch(() => null);
-          if (payload?.redirectUrl) {
-            window.open(payload.redirectUrl as string, '_blank', 'noopener');
+
+          const payload = await response.json().catch(() => null as unknown);
+
+          if (payload && typeof payload === 'object') {
+            const maybePlan = (payload as Record<string, unknown>).plan;
+            const maybeCurrentPlan = (payload as Record<string, unknown>).currentPlan;
+            const nextPlanCandidate = isBillingPlan(maybePlan)
+              ? maybePlan
+              : isBillingPlan(maybeCurrentPlan)
+                ? (maybeCurrentPlan as BillingPlan)
+                : null;
+            if (nextPlanCandidate) {
+              resolvedPlan = nextPlanCandidate;
+            }
+
+            const maybeTrial = (payload as Record<string, unknown>).trialEndsAt;
+            if (typeof maybeTrial === 'string') {
+              resolvedTrialEndsAt = maybeTrial;
+            }
+
+            const redirectUrl = (payload as Record<string, unknown>).redirectUrl;
+            if (typeof redirectUrl === 'string') {
+              window.open(redirectUrl, '_blank', 'noopener');
+            }
           }
         }
+
         const nextState: BillingState = {
-          plan,
-          trialEndsAt:
-            state.plan === 'free' && plan !== 'free'
-              ? (() => {
-                  const date = new Date();
-                  date.setDate(date.getDate() + 14);
-                  return date.toISOString();
-                })()
-              : null,
+          plan: resolvedPlan,
+          trialEndsAt: resolvedPlan === 'free' ? null : resolvedTrialEndsAt,
         };
+
         setState(nextState);
       } catch (error) {
         setBillingError(error instanceof Error ? error.message : '升級失敗，請稍後再試');

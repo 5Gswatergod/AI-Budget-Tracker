@@ -179,7 +179,7 @@ export default function AdminPanel() {
     }
     setAdminMessage(`正在切換至 ${planDisplay[nextPlan].label} 方案…`);
     setAdminError(null);
-    await upgradePlan(nextPlan);
+    await upgradePlan({ plan: nextPlan, bypassCheckout: true });
     setAdminMessage(`方案已更新為 ${planDisplay[nextPlan].label}。`);
   };
 

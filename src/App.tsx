@@ -10,6 +10,7 @@ import { BillingProvider } from './modules/billing/billingContext';
 import AdminPanel from './modules/admin/AdminPanel';
 
 export default function App() {
+  const isAdminEnabled = import.meta.env.VITE_ENABLE_ADMIN_CONSOLE === 'true';
   return (
     <BillingProvider>
       <LedgerProvider>
@@ -20,7 +21,7 @@ export default function App() {
             <Route path="/analytics" element={<Dashboard />} />
             <Route path="/challenges" element={<ChallengeCenter />} />
             <Route path="/billing" element={<BillingPortal />} />
-            <Route path="/admin" element={<AdminPanel />} />
+            {isAdminEnabled ? <Route path="/admin" element={<AdminPanel />} /> : null}
           </Route>
         </Routes>
         <AiAssistant />
