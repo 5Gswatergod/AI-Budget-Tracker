@@ -1,0 +1,17 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/components/*": ["components/*"],
+      "@/lib/*": ["lib/*"],
+      "@/types": ["lib/types"],
+      "@/store": ["lib/store"],
+      "@/constants": ["lib/constants"],
+      "@/hooks/*": ["lib/hooks/*"]
+    }
+  },
+  "include": ["app", "components", "lib", "jest.setup.ts"],
+  "exclude": ["node_modules"]
+}
